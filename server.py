@@ -2,8 +2,8 @@
 """
 Happy Greenery - Scraped Data Viewer & Dashboard Server
 ======================================================
-FastAPI application that serves an interactive 3-column dashboard for viewing, exploring,
-and managing all scraped plant data stored in datascrapping/outputs/.
+FastAPI application configured for local execution & 1-click Vercel Serverless deployment.
+Serves an interactive 3-column dashboard for viewing, exploring, and managing scraped plant data.
 """
 
 import os
@@ -20,56 +20,70 @@ if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
+PRIMARY_OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
+TMP_OUTPUTS_DIR = "/tmp/outputs" if os.name != "nt" else os.path.join(BASE_DIR, "outputs")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
-os.makedirs(OUTPUTS_DIR, exist_ok=True)
-os.makedirs(TEMPLATES_DIR, exist_ok=True)
+os.makedirs(PRIMARY_OUTPUTS_DIR, exist_ok=True)
+if os.name != "nt":
+    os.makedirs(TMP_OUTPUTS_DIR, exist_ok=True)
 
 app = FastAPI(title="Happy Greenery Scraped Data Viewer")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 def get_all_topics():
     topics = []
-    if not os.path.exists(OUTPUTS_DIR):
-        return topics
+    seen_slugs = set()
+    
+    # Check primary outputs directory (git tracked) and /tmp/outputs (runtime scraped on Vercel)
+    target_dirs = [PRIMARY_OUTPUTS_DIR]
+    if os.path.exists(TMP_OUTPUTS_DIR) and TMP_OUTPUTS_DIR != PRIMARY_OUTPUTS_DIR:
+        target_dirs.append(TMP_OUTPUTS_DIR)
         
-    for item in os.listdir(OUTPUTS_DIR):
-        folder_path = os.path.join(OUTPUTS_DIR, item)
-        if os.path.isdir(folder_path):
-            sources_file = os.path.join(folder_path, "site_sources.json")
-            payload_file = os.path.join(folder_path, "content_payload.json")
+    for out_dir in target_dirs:
+        if not os.path.exists(out_dir):
+            continue
             
-            site_count = 0
-            title = item.replace("-", " ").title()
-            media_count = 0
-            
-            if os.path.exists(sources_file):
-                try:
-                    with open(sources_file, "r", encoding="utf-8") as f:
-                        sources = json.load(f)
-                        site_count = len(sources)
-                        for s in sources:
-                            media_count += s.get("images_urls_count", 0) + s.get("pdfs_urls_count", 0) + s.get("models_3d_urls_count", 0)
-                except Exception:
-                    pass
-                    
-            if os.path.exists(payload_file):
-                try:
-                    with open(payload_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        title = data.get("title", title)
-                except Exception:
-                    pass
+        for item in os.listdir(out_dir):
+            if item in seen_slugs:
+                continue
+                
+            folder_path = os.path.join(out_dir, item)
+            if os.path.isdir(folder_path):
+                sources_file = os.path.join(folder_path, "site_sources.json")
+                payload_file = os.path.join(folder_path, "content_payload.json")
+                
+                site_count = 0
+                title = item.replace("-", " ").title()
+                media_count = 0
+                
+                if os.path.exists(sources_file):
+                    try:
+                        with open(sources_file, "r", encoding="utf-8") as f:
+                            sources = json.load(f)
+                            site_count = len(sources)
+                            for s in sources:
+                                media_count += s.get("images_urls_count", 0) + s.get("pdfs_urls_count", 0) + s.get("models_3d_urls_count", 0)
+                    except Exception:
+                        pass
+                        
+                if os.path.exists(payload_file):
+                    try:
+                        with open(payload_file, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            title = data.get("title", title)
+                    except Exception:
+                        pass
 
-            topics.append({
-                "slug": item,
-                "title": title,
-                "site_count": site_count,
-                "media_count": media_count,
-                "folder_path": folder_path
-            })
-            
+                topics.append({
+                    "slug": item,
+                    "title": title,
+                    "site_count": site_count,
+                    "media_count": media_count,
+                    "folder_path": folder_path
+                })
+                seen_slugs.add(item)
+                
     topics.sort(key=lambda x: x["slug"])
     return topics
 
@@ -89,24 +103,24 @@ async def dashboard(request: Request, slug: Optional[str] = None):
         
     topic_data = {}
     if selected_topic:
-        slug_dir = os.path.join(OUTPUTS_DIR, selected_topic["slug"])
+        folder_path = selected_topic["folder_path"]
         
-        sources_path = os.path.join(slug_dir, "site_sources.json")
+        sources_path = os.path.join(folder_path, "site_sources.json")
         if os.path.exists(sources_path):
             with open(sources_path, "r", encoding="utf-8") as f:
                 topic_data["sources"] = json.load(f)
                 
-        raw_path = os.path.join(slug_dir, "raw_content.json")
+        raw_path = os.path.join(folder_path, "raw_content.json")
         if os.path.exists(raw_path):
             with open(raw_path, "r", encoding="utf-8") as f:
                 topic_data["raw_content"] = json.load(f)
                 
-        brief_path = os.path.join(slug_dir, "blog_research_brief.md")
+        brief_path = os.path.join(folder_path, "blog_research_brief.md")
         if os.path.exists(brief_path):
             with open(brief_path, "r", encoding="utf-8") as f:
                 topic_data["research_brief"] = f.read()
                 
-        payload_path = os.path.join(slug_dir, "content_payload.json")
+        payload_path = os.path.join(folder_path, "content_payload.json")
         if os.path.exists(payload_path):
             with open(payload_path, "r", encoding="utf-8") as f:
                 topic_data["payload"] = json.load(f)
@@ -124,18 +138,22 @@ async def api_list_topics():
 
 @app.get("/api/topic/{slug}")
 async def api_get_topic(slug: str):
-    slug_dir = os.path.join(OUTPUTS_DIR, slug)
-    if not os.path.exists(slug_dir):
+    topics = get_all_topics()
+    target_topic = next((t for t in topics if t["slug"] == slug), None)
+    
+    if not target_topic:
         return JSONResponse({"error": "Topic not found"}, status_code=404)
         
+    folder_path = target_topic["folder_path"]
     result = {}
+    
     for filename in ["site_sources.json", "raw_content.json", "content_payload.json"]:
-        filepath = os.path.join(slug_dir, filename)
+        filepath = os.path.join(folder_path, filename)
         if os.path.exists(filepath):
             with open(filepath, "r", encoding="utf-8") as f:
                 result[filename.replace(".json", "")] = json.load(f)
                 
-    brief_path = os.path.join(slug_dir, "blog_research_brief.md")
+    brief_path = os.path.join(folder_path, "blog_research_brief.md")
     if os.path.exists(brief_path):
         with open(brief_path, "r", encoding="utf-8") as f:
             result["research_brief"] = f.read()

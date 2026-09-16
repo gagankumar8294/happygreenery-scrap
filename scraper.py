@@ -127,25 +127,21 @@ def scrape_single_url(url: str) -> dict:
         for element in soup(["script", "style", "nav", "footer", "header", "aside", "form"]):
             element.decompose()
             
-        # Extract headings (H1, H2, H3, H4)
         for h in soup.find_all(["h1", "h2", "h3", "h4"]):
             text = h.get_text(strip=True)
             if text and len(text) > 3:
                 result["headings"].append({"level": h.name, "text": text})
                 
-        # Extract main body paragraphs
         for p in soup.find_all("p"):
             text = p.get_text(strip=True)
             if text and len(text) > 35:
                 result["paragraphs"].append(text)
 
-        # Extract list items
         for li in soup.find_all("li"):
             text = li.get_text(strip=True)
             if text and len(text) > 15 and len(text) < 300:
                 result["list_items"].append(text)
                 
-        # Extract Media URLs ONLY
         for img in soup.find_all("img"):
             src = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
             if src:
@@ -251,8 +247,16 @@ def main():
         sys.exit(1)
         
     slug = slugify(blog_title)
-    output_dir = os.path.join(os.path.dirname(__file__), "outputs", slug)
-    os.makedirs(output_dir, exist_ok=True)
+    
+    # Check output directory with Vercel read-only fallback
+    base_out = os.path.join(os.path.dirname(__file__), "outputs")
+    try:
+        os.makedirs(base_out, exist_ok=True)
+        output_dir = os.path.join(base_out, slug)
+        os.makedirs(output_dir, exist_ok=True)
+    except (PermissionError, OSError):
+        output_dir = os.path.join("/tmp/outputs", slug)
+        os.makedirs(output_dir, exist_ok=True)
     
     print("=======================================================")
     print(f"[SCRAPING TOPIC] '{blog_title}'")
