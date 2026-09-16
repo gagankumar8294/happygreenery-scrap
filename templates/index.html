@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Happy Greenery - Scraped Data Viewer Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel Compiler for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Marked.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0f172a; color: #f8fafc; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col">
+
+  <div id="root" class="h-full flex flex-col"></div>
+
+  {% raw %}
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // React Pure SVG Icon Component (Prevents DOM Mutation & removeChild Errors)
+    const Icon = ({ name, className = "w-4 h-4" }) => {
+      const svgProps = {
+        className,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "2",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        viewBox: "0 0 24 24"
+      };
+
+      switch (name) {
+        case 'sprout':
+          return <svg {...svgProps}><path d="M7 20h10M12 20v-8M12 12A6 6 0 0 1 6 6c3 0 6 3 6 6M12 12a6 6 0 0 0 6-6c-3 0-6 3-6 6"/></svg>;
+        case 'search':
+          return <svg {...svgProps}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+        case 'sparkles':
+          return <svg {...svgProps}><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>;
+        case 'folder-tree':
+          return <svg {...svgProps}><path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-3a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1ZM4 6h3M4 14h3M7 10v8M20 18a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 11h-3a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/></svg>;
+        case 'globe':
+          return <svg {...svgProps}><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/></svg>;
+        case 'image':
+          return <svg {...svgProps}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>;
+        case 'layers':
+          return <svg {...svgProps}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>;
+        case 'book-open':
+          return <svg {...svgProps}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
+        case 'file-text':
+          return <svg {...svgProps}><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>;
+        case 'code':
+          return <svg {...svgProps}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>;
+        case 'external-link':
+          return <svg {...svgProps}><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>;
+        case 'copy':
+          return <svg {...svgProps}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>;
+        case 'clipboard':
+          return <svg {...svgProps}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>;
+        case 'check-circle2':
+          return <svg {...svgProps}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>;
+        default:
+          return null;
+      }
+    };
+
+    function App() {
+      const [topics, setTopics] = useState([]);
+      const [selectedSlug, setSelectedSlug] = useState(null);
+      const [topicData, setTopicData] = useState(null);
+      const [selectedSiteDomain, setSelectedSiteDomain] = useState('ALL');
+      const [activeTab, setActiveTab] = useState('reader');
+      const [searchTerm, setSearchTerm] = useState('');
+      const [newTopicInput, setNewTopicInput] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [scraping, setScraping] = useState(false);
+
+      const loadTopics = async (selectFirst = false) => {
+        try {
+          const res = await fetch('/api/topics');
+          const data = await res.json();
+          setTopics(data);
+          if (data.length > 0 && (selectFirst || !selectedSlug)) {
+            setSelectedSlug(data[0].slug);
+          }
+        } catch (err) {
+          console.error("Error loading topics:", err);
+        }
+      };
+
+      const loadTopicData = async (slug) => {
+        if (!slug) return;
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/topic/${slug}`);
+          const data = await res.json();
+          setTopicData(data);
+          setSelectedSiteDomain('ALL');
+        } catch (err) {
+          console.error("Error loading topic data:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        loadTopics(true);
+      }, []);
+
+      useEffect(() => {
+        if (selectedSlug) {
+          loadTopicData(selectedSlug);
+        }
+      }, [selectedSlug]);
+
+      const filteredTopics = topics.filter(t => 
+        t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.slug.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const handleScrape = async (e) => {
+        e.preventDefault();
+        if (!newTopicInput.trim()) return;
+        
+        setScraping(true);
+        const formData = new FormData();
+        formData.append('title', newTopicInput.trim());
+
+        try {
+          const res = await fetch('/api/scrape', { method: 'POST', body: formData });
+          const json = await res.json();
+          alert(`🚀 ${json.message}\n\nThe topic will appear in Column 1 shortly after scraping.`);
+          setNewTopicInput('');
+          setTimeout(() => loadTopics(), 3000);
+        } catch (err) {
+          alert('❌ Failed to trigger scraping task.');
+        } finally {
+          setScraping(false);
+        }
+      };
+
+      const currentTopic = topics.find(t => t.slug === selectedSlug);
+
+      const sources = topicData?.site_sources || [];
+      const rawContent = topicData?.raw_content || [];
+      const payload = topicData?.content_payload || null;
+      const researchBrief = topicData?.research_brief || '';
+
+      const displayedSites = selectedSiteDomain === 'ALL'
+        ? rawContent
+        : rawContent.filter(s => s.domain === selectedSiteDomain);
+
+      const mediaImages = [];
+      const mediaPdfs = [];
+      const mediaModels = [];
+
+      displayedSites.forEach(site => {
+        if (site.media) {
+          (site.media.images || []).forEach(img => mediaImages.push({ ...img, domain: site.domain }));
+          (site.media.pdfs || []).forEach(pdf => mediaPdfs.push({ ...pdf, domain: site.domain }));
+          (site.media.models_3d || []).forEach(m => mediaModels.push({ ...m, domain: site.domain }));
+        }
+      });
+
+      return (
+        <div className="h-full flex flex-col bg-slate-950 text-slate-100">
+          
+          {/* TOP NAVBAR HEADER */}
+          <header className="h-16 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="bg-emerald-600 text-white p-2 rounded-xl shadow-lg shadow-emerald-900/40">
+                <Icon name="sprout" className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="text-base font-bold text-white tracking-wide">Happy Greenery Plant Data Scraper</h1>
+                <p className="text-xs text-slate-400">Multi-Column Web Scraped Intelligence & Media URL Hub</p>
+              </div>
+            </div>
+
+            {/* SCRAPE NEW TOPIC FORM */}
+            <form onSubmit={handleScrape} className="flex items-center gap-2">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={newTopicInput}
+                  onChange={(e) => setNewTopicInput(e.target.value)}
+                  placeholder="Enter new plant title / topic..." 
+                  className="bg-slate-950 text-sm text-slate-200 placeholder-slate-500 px-4 py-2 pl-9 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 w-80 shadow-inner"
+                  required
+                />
+                <div className="absolute left-3 top-2.5 text-emerald-400">
+                  <Icon name="sparkles" className="w-4 h-4" />
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                disabled={scraping}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30 disabled:opacity-50"
+              >
+                <Icon name="search" className="w-4 h-4" />
+                {scraping ? 'Scraping...' : 'Scrape Topic'}
+              </button>
+            </form>
+          </header>
+
+          {/* MULTI-COLUMN CONTENT AREA (3 COLUMNS) */}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            
+            {/* COLUMN 1: SEARCHED BLOG TOPIC RECORDS */}
+            <div className="w-80 bg-slate-900/90 border-r border-slate-800 flex flex-col flex-shrink-0">
+              <div className="p-4 border-b border-slate-800">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Icon name="folder-tree" className="w-4 h-4 text-emerald-400" />
+                    <span>1. Searched Topics</span>
+                  </h2>
+                  <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-mono">
+                    {topics.length} Records
+                  </span>
+                </div>
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Filter topics..."
+                  className="w-full bg-slate-950 text-xs text-slate-300 placeholder-slate-600 px-3 py-1.5 rounded-lg border border-slate-800 focus:outline-none focus:border-emerald-600"
+                />
+              </div>
+
+              {/* TOPICS LIST TABLE */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {filteredTopics.map(t => (
+                  <button
+                    key={t.slug}
+                    onClick={() => setSelectedSlug(t.slug)}
+                    className={`w-full text-left p-3 rounded-xl border transition flex flex-col gap-1.5 ${
+                      selectedSlug === t.slug 
+                        ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-100 shadow-md' 
+                        : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/60 text-slate-300'
+                    }`}
+                  >
+                    <div className="text-xs font-bold leading-snug line-clamp-2">{t.title}</div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono pt-1 border-t border-slate-800/50">
+                      <span className="flex items-center gap-1">
+                        <Icon name="globe" className="w-3 h-3 text-slate-500" /> {t.site_count} Sites
+                      </span>
+                      <span className="flex items-center gap-1 text-emerald-400">
+                        <Icon name="image" className="w-3 h-3" /> {t.media_count} Media URLs
+                      </span>
+                    </div>
+                  </button>
+                ))}
+                {filteredTopics.length === 0 && (
+                  <div className="text-center py-10 text-slate-500 text-xs">No topics matched your search.</div>
+                )}
+              </div>
+            </div>
+
+            {/* COLUMN 2: SCRAPED WEBSITES FOR SELECTED TOPIC */}
+            <div className="w-80 bg-slate-900/60 border-r border-slate-800 flex flex-col flex-shrink-0">
+              <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <Icon name="globe" className="w-4 h-4 text-emerald-400" />
+                    <span>2. Scraped Websites</span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Select website to inspect content</p>
+                </div>
+                <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-mono">
+                  {sources.length} Sites
+                </span>
+              </div>
+
+              {/* WEBSITES FILTER LIST */}
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {/* ALL SITES OPTION */}
+                <button
+                  onClick={() => setSelectedSiteDomain('ALL')}
+                  className={`w-full text-left p-3 rounded-xl border transition flex items-center justify-between ${
+                    selectedSiteDomain === 'ALL'
+                      ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-100 font-semibold'
+                      : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/60 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs">
+                    <Icon name="layers" className="w-4 h-4 text-emerald-400" />
+                    <span>All Scraped Sites</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded-full font-mono">
+                    Combined
+                  </span>
+                </button>
+
+                {/* INDIVIDUAL WEBSITE CARDS */}
+                {sources.map(s => (
+                  <button
+                    key={s.domain}
+                    onClick={() => setSelectedSiteDomain(s.domain)}
+                    className={`w-full text-left p-3 rounded-xl border transition flex flex-col gap-1.5 ${
+                      selectedSiteDomain === s.domain
+                        ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-100 font-semibold shadow-md'
+                        : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-800/60 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-500 font-mono">Rank #{s.rank}</span>
+                      {s.is_authority ? (
+                        <span className="bg-emerald-950 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded border border-emerald-800/60 font-semibold">
+                          ⭐ Authority
+                        </span>
+                      ) : (
+                        <span className="bg-slate-800 text-slate-400 text-[9px] px-1.5 py-0.5 rounded">Standard</span>
+                      )}
+                    </div>
+
+                    <div className="text-xs font-medium text-slate-200 truncate">{s.site_title || s.domain}</div>
+                    <div className="text-[11px] font-mono text-slate-400 truncate">{s.domain}</div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-800/50">
+                      <span>Headings: <strong className="text-slate-200">{s.headings_count}</strong></span>
+                      <span>Paragraphs: <strong className="text-slate-200">{s.paragraphs_count}</strong></span>
+                      <span className="text-emerald-400 font-semibold">URLs: {s.images_urls_count}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* COLUMN 3: SCRAPED CONTENT & MEDIA READABLE UI */}
+            <div className="flex-1 bg-slate-950 flex flex-col min-w-0">
+              
+              {currentTopic ? (
+                <React.Fragment>
+                  {/* TOPIC & DOMAIN SELECTION HEADER */}
+                  <div className="p-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">3. Content Reader</span>
+                        <span className="text-slate-600">•</span>
+                        <span className="text-xs text-slate-400 font-mono">Filter: {selectedSiteDomain}</span>
+                      </div>
+                      <h2 className="text-base font-bold text-white mt-0.5 line-clamp-1">{currentTopic.title}</h2>
+                    </div>
+
+                    {/* TAB SELECTOR BUTTONS */}
+                    <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                      <button 
+                        onClick={() => setActiveTab('reader')} 
+                        className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                          activeTab === 'reader' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Icon name="book-open" className="w-3.5 h-3.5" /> Read Content
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('media')} 
+                        className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                          activeTab === 'media' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Icon name="image" className="w-3.5 h-3.5" /> Media URLs ({mediaImages.length})
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('brief')} 
+                        className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                          activeTab === 'brief' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Icon name="file-text" className="w-3.5 h-3.5" /> Brief
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('payload')} 
+                        className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                          activeTab === 'payload' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Icon name="code" className="w-3.5 h-3.5" /> Backend JSON
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* MAIN TAB CONTENTS CONTAINER */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    
+                    {/* READ CONTENT TAB: DISPLAY HEADINGS, PARAGRAPHS & LISTS */}
+                    {activeTab === 'reader' && (
+                      <div className="max-w-4xl mx-auto space-y-8">
+                        {displayedSites.map((site, sIdx) => (
+                          <div key={sIdx} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                            
+                            {/* SITE SOURCE BADGE HEADER */}
+                            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-emerald-950 text-emerald-400 text-xs px-2.5 py-1 rounded-lg border border-emerald-800 font-bold font-mono">
+                                  {site.domain}
+                                </span>
+                                <h3 className="text-sm font-bold text-slate-200 line-clamp-1">{site.site_title}</h3>
+                              </div>
+                              <a href={site.url} target="_blank" className="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-mono">
+                                Source Link <Icon name="external-link" className="w-3 h-3" />
+                              </a>
+                            </div>
+
+                            {/* META DESCRIPTION IF AVAILABLE */}
+                            {site.meta_description && (
+                              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 text-xs text-slate-400 italic">
+                                <strong>Meta Summary:</strong> "{site.meta_description}"
+                              </div>
+                            )}
+
+                            {/* SCRAPED HEADINGS & PARAGRAPHS */}
+                            <div className="space-y-4">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Scraped Article Sections:</h4>
+                              
+                              {site.headings && site.headings.map((h, hIdx) => (
+                                <div key={hIdx} className="pt-2">
+                                  {h.level === 'h1' && <h1 className="text-xl font-bold text-emerald-300 border-b border-slate-800 pb-2 mb-2">{h.text}</h1>}
+                                  {h.level === 'h2' && <h2 className="text-base font-bold text-slate-100 mt-4 mb-2 flex items-center gap-2"><span className="w-1.5 h-4 bg-emerald-500 rounded"></span>{h.text}</h2>}
+                                  {h.level === 'h3' && <h3 className="text-sm font-semibold text-slate-300 mt-3 mb-1">{h.text}</h3>}
+                                  {h.level === 'h4' && <h4 className="text-xs font-semibold text-slate-400 mt-2 mb-1">{h.text}</h4>}
+                                </div>
+                              ))}
+
+                              {/* PARAGRAPHS */}
+                              <div className="space-y-3 pt-2">
+                                {site.paragraphs && site.paragraphs.map((p, pIdx) => (
+                                  <p key={pIdx} className="text-xs leading-relaxed text-slate-300 bg-slate-950/50 p-3 rounded-xl border border-slate-800/50">
+                                    {p}
+                                  </p>
+                                ))}
+                              </div>
+
+                              {/* LIST ITEMS IF AVAILABLE */}
+                              {site.list_items && site.list_items.length > 0 && (
+                                <div className="pt-4">
+                                  <h5 className="text-xs font-bold text-slate-400 mb-2">Key Highlights & Bullet Points:</h5>
+                                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-slate-300">
+                                    {site.list_items.slice(0, 10).map((li, lIdx) => (
+                                      <li key={lIdx} className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 flex items-start gap-2">
+                                        <div className="mt-0.5 text-emerald-500">
+                                          <Icon name="check-circle2" className="w-4 h-4" />
+                                        </div>
+                                        <span>{li}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* MEDIA URLS TAB: IMAGE & ASSETS GALLERY (NO BINARY DOWNLOADS) */}
+                    {activeTab === 'media' && (
+                      <div className="space-y-6">
+                        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Harvested Media URLs Gallery</h3>
+                            <p className="text-xs text-slate-400">All media URLs extracted from target plant websites (Images rendered from URLs, zero binary downloads)</p>
+                          </div>
+                          <span className="bg-emerald-950 text-emerald-400 border border-emerald-800 text-xs px-3 py-1 rounded-lg font-mono">
+                            {mediaImages.length} Image URLs
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {mediaImages.map((img, iIdx) => (
+                            <div key={iIdx} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-lg">
+                              <div className="h-44 bg-slate-950 relative overflow-hidden flex items-center justify-center">
+                                <img 
+                                  src={img.url} 
+                                  alt={img.alt} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.src = 'https://via.placeholder.com/400x300?text=Plant+Media+URL+Preview'; }}
+                                />
+                                <span className="absolute bottom-2 left-2 bg-slate-950/80 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-mono border border-slate-800">
+                                  {img.domain}
+                                </span>
+                              </div>
+                              <div className="p-3 flex-1 flex flex-col justify-between space-y-2">
+                                <p className="text-xs text-slate-300 italic line-clamp-2">"{img.alt}"</p>
+                                <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-800">
+                                  <a href={img.url} target="_blank" className="text-emerald-400 font-mono hover:underline truncate max-w-[200px]">
+                                    {img.url}
+                                  </a>
+                                  <button 
+                                    onClick={() => { navigator.clipboard.writeText(img.url); alert('Copied image URL!'); }} 
+                                    className="text-slate-400 hover:text-white p-1"
+                                    title="Copy Media URL"
+                                  >
+                                    <Icon name="copy" className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* RESEARCH BRIEF TAB */}
+                    {activeTab === 'brief' && (
+                      <div className="max-w-4xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div 
+                          className="prose prose-invert max-w-none text-xs text-slate-300 space-y-4"
+                          dangerouslySetInnerHTML={{ __html: marked.parse(researchBrief) }}
+                        />
+                      </div>
+                    )}
+
+                    {/* BACKEND JSON PAYLOAD TAB */}
+                    {activeTab === 'payload' && (
+                      <div className="max-w-4xl mx-auto space-y-4">
+                        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Happy Greenery Backend API Payload</h3>
+                            <p className="text-xs text-slate-400">Payload ready for posting to `https://green-world-backend-85h0.onrender.com/api/blogs`</p>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                              alert('✅ Copied Blog Payload JSON to clipboard!');
+                            }} 
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/30"
+                          >
+                            <Icon name="clipboard" className="w-4 h-4" /> Copy Payload JSON
+                          </button>
+                        </div>
+
+                        <pre className="bg-slate-950 text-emerald-400 p-6 rounded-2xl border border-slate-800 text-xs font-mono overflow-x-auto max-h-[600px] shadow-inner">
+                          {payload ? JSON.stringify(payload, null, 2) : 'No payload generated yet.'}
+                        </pre>
+                      </div>
+                    )}
+
+                  </div>
+                </React.Fragment>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                  <Icon name="sprout" className="w-12 h-12 mb-3 text-slate-700" />
+                  <p className="text-sm font-semibold">Select a topic from Column 1 to view scraped content.</p>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+  {% endraw %}
+</body>
+</html>
