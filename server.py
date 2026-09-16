@@ -13,29 +13,39 @@ import subprocess
 from typing import Optional
 from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from fastapi.templating import Jinja2Templates
 
 # Ensure UTF-8 output
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PRIMARY_OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
-TMP_OUTPUTS_DIR = "/tmp/outputs" if os.name != "nt" else os.path.join(BASE_DIR, "outputs")
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+# Calculate ROOT_DIR reliably whether run directly or imported from api/index.py on Vercel
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if os.path.basename(CURRENT_DIR) == "api":
+    ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+else:
+    ROOT_DIR = CURRENT_DIR
+
+PRIMARY_OUTPUTS_DIR = os.path.join(ROOT_DIR, "outputs")
+TMP_OUTPUTS_DIR = "/tmp/outputs" if os.name != "nt" else os.path.join(ROOT_DIR, "outputs")
+TEMPLATES_DIR = os.path.join(ROOT_DIR, "templates")
+INDEX_HTML_PATH = os.path.join(TEMPLATES_DIR, "index.html")
 
 os.makedirs(PRIMARY_OUTPUTS_DIR, exist_ok=True)
 if os.name != "nt":
     os.makedirs(TMP_OUTPUTS_DIR, exist_ok=True)
 
 app = FastAPI(title="Happy Greenery Scraped Data Viewer")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+def load_index_html():
+    if os.path.exists(INDEX_HTML_PATH):
+        with open(INDEX_HTML_PATH, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h1>Happy Greenery Viewer Dashboard</h1><p>index.html template not found.</p>"
 
 def get_all_topics():
     topics = []
     seen_slugs = set()
     
-    # Check primary outputs directory (git tracked) and /tmp/outputs (runtime scraped on Vercel)
     target_dirs = [PRIMARY_OUTPUTS_DIR]
     if os.path.exists(TMP_OUTPUTS_DIR) and TMP_OUTPUTS_DIR != PRIMARY_OUTPUTS_DIR:
         target_dirs.append(TMP_OUTPUTS_DIR)
@@ -93,44 +103,8 @@ async def favicon():
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, slug: Optional[str] = None):
-    topics = get_all_topics()
-    selected_topic = None
-    
-    if slug:
-        selected_topic = next((t for t in topics if t["slug"] == slug), None)
-    elif topics:
-        selected_topic = topics[0]
-        
-    topic_data = {}
-    if selected_topic:
-        folder_path = selected_topic["folder_path"]
-        
-        sources_path = os.path.join(folder_path, "site_sources.json")
-        if os.path.exists(sources_path):
-            with open(sources_path, "r", encoding="utf-8") as f:
-                topic_data["sources"] = json.load(f)
-                
-        raw_path = os.path.join(folder_path, "raw_content.json")
-        if os.path.exists(raw_path):
-            with open(raw_path, "r", encoding="utf-8") as f:
-                topic_data["raw_content"] = json.load(f)
-                
-        brief_path = os.path.join(folder_path, "blog_research_brief.md")
-        if os.path.exists(brief_path):
-            with open(brief_path, "r", encoding="utf-8") as f:
-                topic_data["research_brief"] = f.read()
-                
-        payload_path = os.path.join(folder_path, "content_payload.json")
-        if os.path.exists(payload_path):
-            with open(payload_path, "r", encoding="utf-8") as f:
-                topic_data["payload"] = json.load(f)
-                
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "topics": topics,
-        "selected_topic": selected_topic,
-        "data": topic_data
-    })
+    html_content = load_index_html()
+    return HTMLResponse(content=html_content)
 
 @app.get("/api/topics")
 async def api_list_topics():
@@ -161,7 +135,7 @@ async def api_get_topic(slug: str):
     return result
 
 def run_scraper_task(title: str):
-    script_path = os.path.join(BASE_DIR, "scraper.py")
+    script_path = os.path.join(ROOT_DIR, "scraper.py")
     subprocess.run([sys.executable, script_path, "--title", title], check=True)
 
 @app.post("/api/scrape")

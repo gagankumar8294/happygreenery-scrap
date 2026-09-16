@@ -26,11 +26,10 @@
 
   <div id="root" class="h-full flex flex-col"></div>
 
-  {% raw %}
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // React Pure SVG Icon Component (Prevents DOM Mutation & removeChild Errors)
+    // React Pure SVG Icon Component
     const Icon = ({ name, className = "w-4 h-4" }) => {
       const svgProps = {
         className,
@@ -528,8 +527,8 @@
                       <div className="max-w-4xl mx-auto space-y-4">
                         <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
                           <div>
-                            <h3 className="text-sm font-bold text-white">Happy Greenery Backend API Payload</h3>
-                            <p className="text-xs text-slate-400">Payload ready for posting to `https://green-world-backend-85h0.onrender.com/api/blogs`</p>
+                            <h3 class="text-sm font-bold text-white">Happy Greenery Backend API Payload</h3>
+                            <p class="text-xs text-slate-400">Payload ready for posting to `https://green-world-backend-85h0.onrender.com/api/blogs`</p>
                           </div>
                           <button 
                             onClick={() => {
@@ -567,6 +566,5 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
-  {% endraw %}
 </body>
 </html>
