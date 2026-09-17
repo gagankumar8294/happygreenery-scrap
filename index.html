@@ -82,20 +82,19 @@
       const [selectedSiteDomain, setSelectedSiteDomain] = useState('ALL');
       const [activeTab, setActiveTab] = useState('reader');
       const [searchTerm, setSearchTerm] = useState('');
-      const [newTopicInput, setNewTopicInput] = useState('');
       const [loading, setLoading] = useState(false);
-      const [scraping, setScraping] = useState(false);
 
       const loadTopics = async (selectFirst = false) => {
         try {
-          const res = await fetch('/api/topics');
+          const res = await fetch('/outputs/manifest.json');
+          if (!res.ok) return;
           const data = await res.json();
           setTopics(data);
           if (data.length > 0 && (selectFirst || !selectedSlug)) {
             setSelectedSlug(data[0].slug);
           }
         } catch (err) {
-          console.error("Error loading topics:", err);
+          console.error("Error loading manifest:", err);
         }
       };
 
@@ -103,9 +102,30 @@
         if (!slug) return;
         setLoading(true);
         try {
-          const res = await fetch(`/api/topic/${slug}`);
-          const data = await res.json();
-          setTopicData(data);
+          const result = {};
+          
+          const fetchSafe = async (url) => {
+            try {
+              const r = await fetch(url);
+              if (r.ok) return await r.json();
+            } catch(e) {}
+            return null;
+          };
+
+          const fetchTextSafe = async (url) => {
+            try {
+              const r = await fetch(url);
+              if (r.ok) return await r.text();
+            } catch(e) {}
+            return '';
+          };
+
+          result.site_sources = await fetchSafe(`/outputs/${slug}/site_sources.json`);
+          result.raw_content = await fetchSafe(`/outputs/${slug}/raw_content.json`);
+          result.content_payload = await fetchSafe(`/outputs/${slug}/content_payload.json`);
+          result.research_brief = await fetchTextSafe(`/outputs/${slug}/blog_research_brief.md`);
+
+          setTopicData(result);
           setSelectedSiteDomain('ALL');
         } catch (err) {
           console.error("Error loading topic data:", err);
@@ -129,27 +149,6 @@
         t.slug.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
-      const handleScrape = async (e) => {
-        e.preventDefault();
-        if (!newTopicInput.trim()) return;
-        
-        setScraping(true);
-        const formData = new FormData();
-        formData.append('title', newTopicInput.trim());
-
-        try {
-          const res = await fetch('/api/scrape', { method: 'POST', body: formData });
-          const json = await res.json();
-          alert(`🚀 ${json.message}\n\nThe topic will appear in Column 1 shortly after scraping.`);
-          setNewTopicInput('');
-          setTimeout(() => loadTopics(), 3000);
-        } catch (err) {
-          alert('❌ Failed to trigger scraping task.');
-        } finally {
-          setScraping(false);
-        }
-      };
-
       const currentTopic = topics.find(t => t.slug === selectedSlug);
 
       const sources = topicData?.site_sources || [];
@@ -162,14 +161,10 @@
         : rawContent.filter(s => s.domain === selectedSiteDomain);
 
       const mediaImages = [];
-      const mediaPdfs = [];
-      const mediaModels = [];
 
       displayedSites.forEach(site => {
         if (site.media) {
           (site.media.images || []).forEach(img => mediaImages.push({ ...img, domain: site.domain }));
-          (site.media.pdfs || []).forEach(pdf => mediaPdfs.push({ ...pdf, domain: site.domain }));
-          (site.media.models_3d || []).forEach(m => mediaModels.push({ ...m, domain: site.domain }));
         }
       });
 
@@ -183,35 +178,16 @@
                 <Icon name="sprout" className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-white tracking-wide">Happy Greenery Plant Data Scraper</h1>
-                <p className="text-xs text-slate-400">Multi-Column Web Scraped Intelligence & Media URL Hub</p>
+                <h1 className="text-base font-bold text-white tracking-wide">Happy Greenery Plant Data Dashboard</h1>
+                <p className="text-xs text-slate-400">Multi-Column Web Scraped Intelligence & Media URL Viewer</p>
               </div>
             </div>
 
-            {/* SCRAPE NEW TOPIC FORM */}
-            <form onSubmit={handleScrape} className="flex items-center gap-2">
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value={newTopicInput}
-                  onChange={(e) => setNewTopicInput(e.target.value)}
-                  placeholder="Enter new plant title / topic..." 
-                  className="bg-slate-950 text-sm text-slate-200 placeholder-slate-500 px-4 py-2 pl-9 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 w-80 shadow-inner"
-                  required
-                />
-                <div className="absolute left-3 top-2.5 text-emerald-400">
-                  <Icon name="sparkles" className="w-4 h-4" />
-                </div>
-              </div>
-              <button 
-                type="submit" 
-                disabled={scraping}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-emerald-900/30 disabled:opacity-50"
-              >
-                <Icon name="search" className="w-4 h-4" />
-                {scraping ? 'Scraping...' : 'Scrape Topic'}
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold px-3 py-1 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-full font-mono">
+                Static Vercel Deployment • Active
+              </span>
+            </div>
           </header>
 
           {/* MULTI-COLUMN CONTENT AREA (3 COLUMNS) */}
@@ -464,7 +440,7 @@
                       </div>
                     )}
 
-                    {/* MEDIA URLS TAB: IMAGE & ASSETS GALLERY (NO BINARY DOWNLOADS) */}
+                    {/* MEDIA URLS TAB */}
                     {activeTab === 'media' && (
                       <div className="space-y-6">
                         <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
@@ -527,8 +503,8 @@
                       <div className="max-w-4xl mx-auto space-y-4">
                         <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
                           <div>
-                            <h3 class="text-sm font-bold text-white">Happy Greenery Backend API Payload</h3>
-                            <p class="text-xs text-slate-400">Payload ready for posting to `https://green-world-backend-85h0.onrender.com/api/blogs`</p>
+                            <h3 className="text-sm font-bold text-white">Happy Greenery Backend API Payload</h3>
+                            <p className="text-xs text-slate-400">Payload ready for posting to `https://green-world-backend-85h0.onrender.com/api/blogs`</p>
                           </div>
                           <button 
                             onClick={() => {

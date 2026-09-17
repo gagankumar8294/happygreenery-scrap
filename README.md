@@ -1,91 +1,62 @@
-# 🪴 Happy Greenery Data Scraper & 3-Column Intelligence Dashboard
+# 🪴 Happy Greenery Scraped Data React Dashboard
 
-> **Standalone Scraper & Visual Viewer Project**  
+> **Vercel Static React App & Python Scraping Engine**  
 > **Repository**: `https://github.com/gagankumar8294/happygreenery-scrap.git`  
 > **Target Region**: Bengaluru / India & Global Top Plant Authorities  
 
 ---
 
-## 📌 Project Overview
+## 📌 Project Architecture
 
-This repository contains the complete end-to-end data scraping pipeline, persistent guidelines, dataset storage, and interactive 3-column React dashboard for **Happy Greenery**.
-
-### 🌟 Key Features:
-1. **Multi-Site Scraper Engine (`scraper.py`)**:
-   - Searches and scrapes top 10–20 high-ranking plant & gardening websites (*Ugaoo, Nurserylive, Foliages.in, Balcony Garden Web, The Spruce, Gardening Know How, Abana Homes, etc.*).
-   - Extracts full article headings (`H1`-`H4`), body paragraphs, meta summaries, and bullet lists.
-   - **Media URLs Only**: Harvests image URLs, PDF guide links, 3D model links (`.glb`, `.gltf`, `.usdz`), and video embeds without downloading raw binary files.
-2. **Persistent Guidelines (`SCRAPING_GUIDELINES.md`)**:
-   - Maintains strict operational rules, media URL standards, domain targeting, and output schemas across all scraping sessions.
-3. **3-Column React Viewer Dashboard (`server.py` & `templates/index.html`)**:
-   - **Column 1**: Table of all recorded searched blog topics with filter search & media count badges.
-   - **Column 2**: List of all top websites scraped for the selected topic (*Rank order, domain name, authority rating badges, media counts*).
-   - **Column 3**: Formatted reader UI displaying article content, live image URL gallery, research briefs, and 1-click copyable Happy Greenery backend JSON payloads.
-
----
-
-## 📁 Repository Structure
+This repository is organized into a clean **Static React App at root** (optimized for 1-click Vercel static deployment) and an isolated **Python Scraping Engine** inside `scripts/`.
 
 ```
 .
-├── SCRAPING_GUIDELINES.md   # Persistent scraping rules & prompt guidelines
-├── requirements.txt         # Python dependencies
-├── scraper.py               # Data scraping CLI & automation script
-├── server.py              # FastAPI server serving the web dashboard
-├── templates/
-│   └── index.html         # React 3-column UI dashboard template
-└── outputs/                 # Persistent storage for all scraped JSON & Markdown datasets
-    ├── best-air-purifying-indoor-plants-for-bengaluru-apartments/
-    │   ├── site_sources.json
-    │   ├── raw_content.json
-    │   ├── blog_research_brief.md
-    │   └── content_payload.json
-    └── top-20-low-maintenance-indoor-plants/
-        ├── site_sources.json
-        ├── raw_content.json
-        ├── blog_research_brief.md
-        └── content_payload.json
+├── index.html               # 3-Column React Dashboard UI (Vercel Static App)
+├── outputs/                 # Scraped datasets & JSON manifest
+│   ├── manifest.json        # Topic registry loaded by React UI
+│   ├── best-air-purifying-indoor-plants-for-bengaluru-apartments/
+│   │   ├── site_sources.json
+│   │   ├── raw_content.json
+│   │   ├── blog_research_brief.md
+│   │   └── content_payload.json
+│   └── top-20-low-maintenance-indoor-plants/
+│       ├── site_sources.json
+│       ├── raw_content.json
+│       ├── blog_research_brief.md
+│       └── content_payload.json
+└── scripts/                 # Python Scraping Engine & Utilities
+    ├── scraper.py           # Multi-site scraping engine
+    ├── generate_manifest.py # Scraped topic manifest generator
+    └── server.py           # Local FastAPI server
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Vercel Deployment
 
-### 1. Installation
+Deploying on Vercel is now **100% static and instant** with **zero serverless function errors**:
 
-Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
-
----
-
-### 2. Running the 3-Column Viewer Dashboard
-
-To view and interact with all scraped data in your browser:
-```bash
-python server.py
-```
-Open **`http://localhost:8000`** in your browser.
+1. Import `https://github.com/gagankumar8294/happygreenery-scrap` on Vercel.
+2. Select **Framework Preset**: `Other` (or Static HTML).
+3. Click **Deploy**. Vercel will deploy your React Dashboard UI in 1 second!
 
 ---
 
-### 3. Scraping a New Blog Topic
+## 🛠️ How to Scrape New Plant Topics Locally
 
-You can trigger a scrape directly from the dashboard header UI at `http://localhost:8000`, or run the command line tool:
+To harvest new plant data from top authority websites:
 
 ```bash
-python scraper.py --title "Best Indoor Plants for Bengaluru Apartments"
+cd scripts
+python scraper.py --title "Best Balcony Plants for Bengaluru Monsoon"
 ```
 
-Or run interactively:
-```bash
-python scraper.py
-```
+The scraper automatically extracts full text content, harvests media URLs (without binary file downloads), generates backend-ready blog JSON payloads, and updates `outputs/manifest.json` for the React Dashboard.
 
 ---
 
-## 📤 Backend API Integration
+## 📤 Backend API Payload
 
 The `content_payload.json` generated for each topic directly matches the **Happy Greenery Backend API** schema. You can post the payload directly to:
 ```

@@ -17,6 +17,7 @@ import argparse
 from urllib.parse import urlparse, urljoin
 import requests
 from bs4 import BeautifulSoup
+from generate_manifest import generate_manifest
 
 # Ensure standard output handles UTF-8 on Windows
 if hasattr(sys.stdout, 'reconfigure'):
@@ -248,15 +249,10 @@ def main():
         
     slug = slugify(blog_title)
     
-    # Check output directory with Vercel read-only fallback
-    base_out = os.path.join(os.path.dirname(__file__), "outputs")
-    try:
-        os.makedirs(base_out, exist_ok=True)
-        output_dir = os.path.join(base_out, slug)
-        os.makedirs(output_dir, exist_ok=True)
-    except (PermissionError, OSError):
-        output_dir = os.path.join("/tmp/outputs", slug)
-        os.makedirs(output_dir, exist_ok=True)
+    base_out = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "outputs"))
+    os.makedirs(base_out, exist_ok=True)
+    output_dir = os.path.join(base_out, slug)
+    os.makedirs(output_dir, exist_ok=True)
     
     print("=======================================================")
     print(f"[SCRAPING TOPIC] '{blog_title}'")
@@ -328,6 +324,9 @@ def main():
     with open(payload_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
     print(f"[SAVE] Saved Happy Greenery Backend-Ready JSON Payload to: {payload_path}")
+    
+    # Auto-generate manifest.json for React UI
+    generate_manifest()
     
     print("\n=======================================================")
     print("[COMPLETE] Scraping and data structuring completed successfully!")
